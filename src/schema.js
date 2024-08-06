@@ -2,7 +2,8 @@ const typeDefs = `
   type Author {
     name: String!
     born: Int
-    bookCount: Int
+    books: [Book!]!
+    bookCount: Int!
     id: ID!
   }
 

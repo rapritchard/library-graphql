@@ -14,7 +14,7 @@ const resolvers = {
     authorCount: async () => Author.collection.countDocuments(),
     allBooks: async (root, arguments_) => {
       if (Object.keys(arguments_).length === 0) {
-        return Book.find({}).populate("author");
+        return await Book.find({}).populate("author");
       }
 
       const query = {};
@@ -35,20 +35,15 @@ const resolvers = {
       return books;
     },
     allAuthors: async () => {
-      const [authors, books] = await Promise.all([
-        Author.find({}),
-        Book.find({}).populate("author"),
-      ]);
-
-      return authors.map((author) => ({
-        id: author._id,
-        name: author.name,
-        born: author.born,
-        bookCount: books.filter((b) => b.author.name === author.name).length,
-      }));
+      return Author.find({}).populate("books");
     },
     me: (root, arguments_, context) => {
       return context.currentUser;
+    },
+  },
+  Author: {
+    bookCount: async (root) => {
+      return root.books.length;
     },
   },
   Mutation: {
@@ -73,7 +68,7 @@ const resolvers = {
         throw new GraphQLError("Saving new author failed", {
           extensions: {
             code: "BAD_USER_INPUT",
-            invalidArgs: arguments_.author,
+            invalidArgs: arguments_,
             error,
           },
         });
@@ -81,7 +76,7 @@ const resolvers = {
       try {
         const book = new Book({ ...arguments_, author });
         const newBook = await book.save();
-
+        await author.updateOne({ $push: { books: book } });
         pubsub.publish("BOOK_ADDED", { bookAdded: newBook });
 
         return newBook;
@@ -89,7 +84,7 @@ const resolvers = {
         throw new GraphQLError("Saving new book failed", {
           extensions: {
             code: "BAD_USER_INPUT",
-            invalidArgs: arguments_.title,
+            invalidArgs: arguments_,
             error,
           },
         });
